@@ -4,22 +4,53 @@
 #
 
 import vispy                    # Main application support.
-
+import nltk.chat                # Natural language toolkit
+import win32com.client
 import window                   # Terminal input and display.
 
 
 class HAL9000(object):
-    
+
+    messagesCount = 0
+
+    AGENT_RESPONSES = [
+      (r'(Who|who) are you',    # Pattern 1.
+        ['I am HAL.']),
+
+      (r'Are you ([\w\s]+)\?',                    # Pattern 2.
+        ["Why would you think I am %1?",          # Response 2a.
+         "Would you like me to be %1?"]),
+
+      (r'',                                       # Pattern 3. (default)
+        ["Is everything OK?",                     # Response 3a.
+         "Can you still communicate?"])
+    ]
+
+    chatbot = nltk.chat.Chat(AGENT_RESPONSES, nltk.chat.util.reflections)
+
+    voice = win32com.client.Dispatch("SAPI.SpVoice")
+
+
     def __init__(self, terminal):
         """Constructor for the agent, stores references to systems and initializes internal memory.
         """
         self.terminal = terminal
-        self.location = 'unknown'
+        self.location = 'entrance'
+
+        self.voice.Speak('Good afternoon! My name is Hal.')
 
     def on_input(self, evt):
         """Called when user types anything in the terminal, connected via event.
         """
-        self.terminal.log("Good morning! This is HAL.", align='right', color='#00805A')
+
+
+
+        if evt.text == 'Where am I?':
+            self.terminal.log(self.location, align='right', color='#00805A')
+            self.voice.Speak('you are at'+self.location)
+        else:
+            self.terminal.log(self.chatbot.respond(evt.text), align='right', color='#00805A')
+        self.messagesCount += 1
 
     def on_command(self, evt):
         """Called when user types a command starting with `/` also done via events.
@@ -28,6 +59,7 @@ class HAL9000(object):
             vispy.app.quit()
 
         elif evt.text.startswith('relocate'):
+            self.location = evt.text[9:]
             self.terminal.log('', align='center', color='#404040')
             self.terminal.log('\u2014 Now in the {}. \u2014'.format(evt.text[9:]), align='center', color='#404040')
 
